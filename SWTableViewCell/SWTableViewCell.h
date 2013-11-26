@@ -9,6 +9,8 @@
 #import <UIKit/UIKit.h>
 #import <UIKit/UIGestureRecognizerSubclass.h>
 
+#import "ABTableViewCell.h"
+
 @class SWTableViewCell;
 
 typedef enum {
@@ -40,7 +42,7 @@ typedef enum {
 
 @end
 
-@interface SWTableViewCell : UITableViewCell
+@interface SWTableViewCell : ABTableViewCell
 
 @property (nonatomic, strong) NSArray *leftUtilityButtons;
 @property (nonatomic, strong) NSArray *rightUtilityButtons;
