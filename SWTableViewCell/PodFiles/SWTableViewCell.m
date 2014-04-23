@@ -220,10 +220,8 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     if (longPressGestureRecognizer.state == UIGestureRecognizerStateEnded)
     {
         // Gesture recognizer ended without failing so we select the cell
-        [self selectCell];
-        
-        // Set back to deselected
-        [self setSelected:NO];
+        // Let the scrollViewUp: handler do the cell selection
+        [self setHighlighted:NO];
     }
     else
     {
