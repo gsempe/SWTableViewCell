@@ -26,8 +26,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 @property (nonatomic) CGFloat height;
 @property (nonatomic, assign, getter = isAppearanceSet) BOOL appearanceSet;
 
-@property (nonatomic, strong) SWLongPressGestureRecognizer *longPressGestureRecognizer;
-@property (nonatomic, strong) UITapGestureRecognizer *tapGestureRecognizer;
 
 @end
 
@@ -95,22 +93,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     cellScrollView.scrollsToTop = NO;
     cellScrollView.scrollEnabled = YES;
     
-    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                                           action:@selector(scrollViewUp:)];
-    tapGestureRecognizer.cancelsTouchesInView = NO;
-    [cellScrollView addGestureRecognizer:tapGestureRecognizer];
-    
-    self.tapGestureRecognizer = tapGestureRecognizer;
-    
-    SWLongPressGestureRecognizer *longPressGestureRecognizer = [[SWLongPressGestureRecognizer alloc] initWithTarget:self
-                                                                                                             action:@selector(scrollViewPressed:)];
-    longPressGestureRecognizer.cancelsTouchesInView = NO;
-    longPressGestureRecognizer.minimumPressDuration = kLongPressMinimumDuration;
-    longPressGestureRecognizer.delegate = self;
-    [cellScrollView addGestureRecognizer:longPressGestureRecognizer];
-    
-    self.longPressGestureRecognizer = longPressGestureRecognizer;
-    
     self.cellScrollView = cellScrollView;
     
     // Create the content view that will live in our scroll view
@@ -150,7 +132,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     _containingTableView.directionalLockEnabled = YES;
     
     self.height = _containingTableView.rowHeight;
-    [self.tapGestureRecognizer requireGestureRecognizerToFail:_containingTableView.panGestureRecognizer];
 }
 
 - (void)layoutSubviews
@@ -166,7 +147,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     self.scrollViewButtonViewRight.frame = CGRectMake(CGRectGetWidth(self.bounds), 0, 0, self.height);
     self.scrollViewButtonViewRight.layer.masksToBounds = YES;
     self.scrollViewContentView.frame = CGRectMake([self leftUtilityButtonsWidth], 0, CGRectGetWidth(self.bounds), self.height);
-    self.tapGestureRecognizer.enabled = YES;
     self.cellScrollView.scrollEnabled = !self.selected && !self.editing;
 }
 
@@ -210,96 +190,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     [self setNeedsLayout];
 }
 
-
-#pragma mark Selection
-
-- (void)scrollViewPressed:(id)sender
-{
-    SWLongPressGestureRecognizer *longPressGestureRecognizer = (SWLongPressGestureRecognizer *)sender;
-    
-    if (longPressGestureRecognizer.state == UIGestureRecognizerStateEnded)
-    {
-        // Gesture recognizer ended without failing so we select the cell
-        // Let the scrollViewUp: handler do the cell selection
-        [self setHighlighted:NO];
-    }
-    else
-    {
-        // Handle the highlighting of the cell
-        if (self.isHighlighted)
-        {
-            [self setHighlighted:NO];
-        }
-        else
-        {
-            [self highlightCell];
-        }
-    }
-}
-
-- (void)scrollViewUp:(id)sender
-{
-    if(_cellState == kCellStateCenter)
-    {
-        if (self.selected)
-            [self deselectCell];
-        else
-            [self selectCell];
-    }
-    else
-    {
-        // Scroll back to center
-        [self hideUtilityButtonsAnimated:YES];
-    }
-}
-
-- (void)selectCell
-{
-    if (_cellState == kCellStateCenter)
-    {
-        NSIndexPath *cellIndexPath = [self.containingTableView indexPathForCell:self];
-        if ([self.containingTableView.delegate respondsToSelector:@selector(tableView:willSelectRowAtIndexPath:)])
-        {
-            [self.containingTableView.delegate tableView:self.containingTableView willSelectRowAtIndexPath:cellIndexPath];
-        }
-        
-        // Select the cell
-        [self setSelected:YES];
-        [self.containingTableView selectRowAtIndexPath:cellIndexPath animated:NO scrollPosition:UITableViewScrollPositionNone];
-        if ([self.containingTableView.delegate respondsToSelector:@selector(tableView:didSelectRowAtIndexPath:)])
-        {
-            [self.containingTableView.delegate tableView:self.containingTableView didSelectRowAtIndexPath:cellIndexPath];
-        }
-    }
-}
-
-- (void)deselectCell
-{
-    if (_cellState == kCellStateCenter)
-    {
-        NSIndexPath *cellIndexPath = [self.containingTableView indexPathForCell:self];
-        if ([self.containingTableView.delegate respondsToSelector:@selector(tableView:willDeselectRowAtIndexPath:)])
-        {
-            [self.containingTableView.delegate tableView:self.containingTableView willDeselectRowAtIndexPath:cellIndexPath];
-        }
-        
-        // Deselect the cell
-        [self setSelected:NO];
-        [self.containingTableView deselectRowAtIndexPath:cellIndexPath animated:YES];
-        if ([self.containingTableView.delegate respondsToSelector:@selector(tableView:didDeselectRowAtIndexPath:)])
-        {
-            [self.containingTableView.delegate tableView:self.containingTableView didDeselectRowAtIndexPath:cellIndexPath];
-        }
-    }
-}
-
-- (void)highlightCell
-{
-    if (_cellState == kCellStateCenter)
-    {
-        [self setHighlighted:YES];
-    }
-}
 
 #pragma mark UITableViewCell overrides
 
@@ -423,9 +313,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     targetContentOffset->x = [self utilityButtonsPadding];
     _cellState = kCellStateRight;
     
-    self.longPressGestureRecognizer.enabled = NO;
-    self.tapGestureRecognizer.enabled = NO;
-    
     if ([self.delegate respondsToSelector:@selector(swipeableTableViewCell:scrollingToState:)])
     {
         [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateRight];
@@ -446,9 +333,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     targetContentOffset->x = [self leftUtilityButtonsWidth];
     _cellState = kCellStateCenter;
     
-    self.longPressGestureRecognizer.enabled = YES;
-    self.tapGestureRecognizer.enabled = NO;
-
     if ([self.delegate respondsToSelector:@selector(swipeableTableViewCell:scrollingToState:)])
     {
         [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateCenter];
@@ -459,9 +343,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 {
     targetContentOffset->x = 0;
     _cellState = kCellStateLeft;
-    
-    self.longPressGestureRecognizer.enabled = NO;
-    self.tapGestureRecognizer.enabled = NO;
     
     if ([self.delegate respondsToSelector:@selector(swipeableTableViewCell:scrollingToState:)])
     {
@@ -550,7 +431,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
 {
-    self.tapGestureRecognizer.enabled = NO;
     if (scrollView.contentOffset.x > [self leftUtilityButtonsWidth])
     {
         if ([self rightUtilityButtonsWidth] > 0)
@@ -576,7 +456,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
         else
         {
             [scrollView setContentOffset:CGPointMake([self leftUtilityButtonsWidth], 0)];
-            self.tapGestureRecognizer.enabled = YES;
         }
     }
     else
@@ -600,7 +479,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
         else
         {
             [scrollView setContentOffset:CGPointMake(0, 0)];
-            self.tapGestureRecognizer.enabled = YES;
         }
     }
 }
@@ -608,8 +486,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView
 {
     [self setCellState];
-    
-    self.tapGestureRecognizer.enabled = YES;
 }
 
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView
@@ -617,11 +493,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     [self setCellState];
     
     // Called when setContentOffset in hideUtilityButtonsAnimated: is done
-    self.tapGestureRecognizer.enabled = YES;
-    if (_cellState == kCellStateCenter)
-    {
-        self.longPressGestureRecognizer.enabled = YES;
-    }
 }
 
 #pragma mark - Cell State
