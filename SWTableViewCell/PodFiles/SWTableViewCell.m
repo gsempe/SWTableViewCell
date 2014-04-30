@@ -25,9 +25,6 @@
 @property (nonatomic, strong) UIView *leftUtilityClipView, *rightUtilityClipView;
 @property (nonatomic, strong) NSLayoutConstraint *leftUtilityClipConstraint, *rightUtilityClipConstraint;
 
-@property (nonatomic, strong) UILongPressGestureRecognizer *longPressGestureRecognizer;
-@property (nonatomic, strong) UITapGestureRecognizer *tapGestureRecognizer;
-
 - (CGFloat)leftUtilityButtonsWidth;
 - (CGFloat)rightUtilityButtonsWidth;
 - (CGFloat)utilityButtonsPadding;
@@ -115,16 +112,6 @@
     // Move the UITableViewCell de facto contentView into our scroll view.
     [self.cellScrollView addSubview:self.contentView];
     
-    self.tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(scrollViewTapped:)];
-    self.tapGestureRecognizer.cancelsTouchesInView = NO;
-    [self.cellScrollView addGestureRecognizer:self.tapGestureRecognizer];
-    
-    self.longPressGestureRecognizer = [[SWLongPressGestureRecognizer alloc] initWithTarget:self action:@selector(scrollViewPressed:)];
-    self.longPressGestureRecognizer.cancelsTouchesInView = NO;
-    self.longPressGestureRecognizer.minimumPressDuration = kLongPressMinimumDuration;
-    self.longPressGestureRecognizer.delegate = self;
-    [self.cellScrollView addGestureRecognizer:self.longPressGestureRecognizer];
-    
     // Create the left and right utility button views, as well as vanilla UIViews in which to embed them.  We can manipulate the latter in order to effect clipping according to scroll position.
     // Such an approach is necessary in order for the utility views to sit on top to get taps, as well as allow the backgroundColor (and private UITableViewCellBackgroundView) to work properly.
     
@@ -193,8 +180,6 @@
         }
         
         _containingTableView.directionalLockEnabled = YES;
-        
-        [self.tapGestureRecognizer requireGestureRecognizerToFail:_containingTableView.panGestureRecognizer];
     }
 }
 
@@ -285,46 +270,6 @@
     }
 
     return shouldHighlight;
-}
-
-- (void)scrollViewPressed:(UIGestureRecognizer *)gestureRecognizer
-{
-    if (gestureRecognizer.state == UIGestureRecognizerStateBegan && !self.isHighlighted && self.shouldHighlight)
-    {
-        [self setHighlighted:YES animated:NO];
-    }
-
-    else if (gestureRecognizer.state == UIGestureRecognizerStateEnded)
-    {
-        // Cell is already highlighted; clearing it temporarily seems to address visual anomaly.
-        [self setHighlighted:NO animated:NO];
-        [self scrollViewTapped:gestureRecognizer];
-    }
-
-    else if (gestureRecognizer.state == UIGestureRecognizerStateCancelled)
-    {
-        [self setHighlighted:NO animated:NO];
-    }
-}
-
-- (void)scrollViewTapped:(UIGestureRecognizer *)gestureRecognizer
-{
-    if (_cellState == kCellStateCenter)
-    {
-        if (self.isSelected)
-        {
-            [self deselectCell];
-        }
-        else if (self.shouldHighlight) // UITableView refuses selection if highlight is also refused.
-        {
-            [self selectCell];
-        }
-    }
-    else
-    {
-        // Scroll back to center
-        [self hideUtilityButtonsAnimated:YES];
-    }
 }
 
 - (void)selectCell
@@ -471,18 +416,6 @@
     self.leftUtilityClipConstraint.constant = MAX(0, CGRectGetMinX(frame) - CGRectGetMinX(self.frame));
     self.rightUtilityClipConstraint.constant = MIN(0, CGRectGetMaxX(frame) - CGRectGetMaxX(self.frame));
 
-    // Enable or disable the gesture recognizers according to the current mode.
-    if (!self.cellScrollView.isDragging && !self.cellScrollView.isDecelerating)
-    {
-        self.tapGestureRecognizer.enabled = YES;
-        self.longPressGestureRecognizer.enabled = (_cellState == kCellStateCenter);
-    }
-    else
-    {
-        self.tapGestureRecognizer.enabled = NO;
-        self.longPressGestureRecognizer.enabled = NO;
-    }
-
     self.cellScrollView.scrollEnabled = !self.isEditing;
 }
 
@@ -569,7 +502,6 @@
         else
         {
             [scrollView setContentOffset:CGPointMake([self leftUtilityButtonsWidth], 0)];
-            self.tapGestureRecognizer.enabled = YES;
         }
     }
     else
@@ -589,7 +521,6 @@
         else
         {
             [scrollView setContentOffset:CGPointMake(0, 0)];
-            self.tapGestureRecognizer.enabled = YES;
         }
     }
     
@@ -610,16 +541,7 @@
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
-    if ((gestureRecognizer == self.containingTableView.panGestureRecognizer && otherGestureRecognizer == self.longPressGestureRecognizer)
-        || (gestureRecognizer == self.longPressGestureRecognizer && otherGestureRecognizer == self.containingTableView.panGestureRecognizer))
-    {
-        // Return YES so the pan gesture of the containing table view is not cancelled by the long press recognizer
-        return YES;
-    }
-    else
-    {
-        return NO;
-    }
+    return NO;
 }
 
 @end
